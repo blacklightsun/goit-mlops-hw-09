@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlflow-app      # Ім'я вашого додатку в Argo CD
+  namespace: argocd  # Завжди створюється в неймспейсі Argo CD
+spec:
+  project: default # Проєкт, до якого належить додаток
+
+  source:
+    repoURL: 'https://github.com/blacklightsun/goit-mlflow-platform.git' # URL вашого Git-репозиторію
+    path: 'manifests/mlflow'  # Шлях до директорії з маніфестами, Helm-чартом або Kustomize
+    targetRevision: HEAD            # Гілка, тег або хеш коміту для відстеження
+
+  destination:
+    server: 'https://kubernetes.default.svc' # Адреса Kubernetes API вашого кластера
+    namespace: mlflow             # Неймспейс, в який потрібно розгорнути додаток
+
+  syncPolicy:
+    automated:
+      prune: true    # Видаляти ресурси, яких більше немає в Git
+      selfHeal: true # Автоматично виправляти відхилення від стану в Git
+    syncOptions:
+    - CreateNamespace=true # Автоматично створювати неймспейс, якщо його немає

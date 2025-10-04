@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-deployment
+  namespace: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow-container
+          image: ghcr.io/mlflow/mlflow:latest
+          command: ["mlflow", "server"]
+          args: [
+                "--host", "0.0.0.0",
+                "--backend-store-uri", "sqlite:////mlflow-data/mlflow.db",     # ✅ ЗАЛИШАЄМО: Метадані зберігаються на диску.
+                "--artifacts-destination", "s3://mlflow-artifacts"            # ⬅️ ЗМІНЕНО: Вказуємо, що артефакти треба класти в S3-сумісне сховище (MinIO) у бакет 'mlflow-artifacts'.
+          ]
+          
+          # ❗️ ДОДАНО: Секція змінних середовища для підключення до MinIO.
+          env:
+            # Вказуємо MLflow адресу нашого MinIO сервера.
+            # Це стандартна внутрішня DNS-адреса Kubernetes: <service-name>.<namespace>.svc.cluster.local:<port>
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://minio-service.minio.svc.cluster.local:9000"
+
+            # 🔑 Беремо ключі доступу з Kubernetes Secret, який ви створили для MinIO.
+            # Це безпечний спосіб передавати паролі, не записуючи їх у деплоймент.
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret # Замініть на назву вашого Secret'а, якщо вона інша.
+                  key: accessKey     # Ключ всередині Secret'а, що містить Access Key.
+
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secret # Замініть на назву вашого Secret'а, якщо вона інша.
+                  key: secretKey     # Ключ всередині Secret'а, що містить Secret Key.
+
+          ports:
+            - containerPort: 5000
+          
+          volumeMounts:
+            # Монтуємо том, як і раніше, але тепер він використовується ТІЛЬКИ для бази даних SQLite.
+            - name: mlflow-storage
+              mountPath: /mlflow-data
+      
+      volumes:
+        - name: mlflow-storage
+          persistentVolumeClaim:
+            claimName: mlflow-pvc

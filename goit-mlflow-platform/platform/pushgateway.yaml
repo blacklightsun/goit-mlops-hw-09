@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-pushgateway
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    namespace: monitoring
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-pushgateway
+    targetRevision: 3.3.0
+    helm:
+      valuesObject:
+        service:
+          type: ClusterIP
+        ingress:
+          enabled: false
+        persistentVolume:
+          enabled: false
+        podAnnotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "9091"
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+---
+# Цей ServiceMonitor дозволяє Prometheus з kube-prometheus-stack збирати метрики
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pushgateway
+  namespace: monitoring
+  labels:
+    release: prometheus-operator   # <-- має збігатись з label release вашого kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-pushgateway
+  endpoints:
+    - port: http
+      interval: 30s
