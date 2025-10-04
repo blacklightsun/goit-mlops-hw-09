@@ -1,0 +1,12 @@
+# 03-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: minio
+spec:
+  accessModes:
+    - ReadWriteOnce # Доступ на запис лише для одного поду
+  resources:
+    requests:
+      storage: 2Gi # Розмір сховища
