@@ -1,5 +1,0 @@
-mlflow
-scikit-learn
-prometheus_client
-python-dotenv
-boto3
